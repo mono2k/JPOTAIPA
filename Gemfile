@@ -1,0 +1,12 @@
+source 'http://rubygems.org'
+gem 'oauth'
+gem 'sinatra'
+gem 'dm-core'
+gem 'dm-postgres-adapter'
+gem 'do_postgres'
+gem 'dm-sqlite-adapter', :group => :development
+gem 'dm-migrations'
+gem 'rest-client'
+gem 'pdfkit'
+gem 'box-api'
+gem 'pg'
