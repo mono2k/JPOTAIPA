@@ -59,6 +59,12 @@ get '/' do
   erb :index
 end
 
+get '/apps' do
+  @apps = AppFile.all
+  @apps.map! {|app| { :plist_url => app.plist_file, :name => app.name } }
+  render :json => @apps
+end
+
 post "/upload" do
   puts params
   File.open('uploads/' + params['ipa'][:filename], "w") do |f|
@@ -136,12 +142,26 @@ __END__
             }
           });
           
-          AppView = Backbone.View.extend({
-            el: $("body"),
+          IPAView = Backbone.View.extend({
+            // use mustache style since we reserve the < % for ruby
+            template: _.template("<a id=\"{{ id }}\"class=\"btn btn-warning btn-large\" href=\"itms-services://?action=download-manifest&url={{ plist_file }}\">{{ name }}</a>"),
             initialize: function () {
-              this.ipas = new IPAs( null, { view: this });
-              //Create a friends collection when the view is initialized.
-              //Pass it a reference to this view to create a connection between the two
+              this.model.on('change', this.render, this);
+              this.model.on('destroy hide', this.remove, this);
+            },
+            remove: function(){
+              this.$el.remove();
+            },
+            renderUpdate: function(model){
+              var attributes = model.toJSON();
+              this.$el.html(this.template(attributes));
+            }
+          });
+
+          IPAListView = Backbone.view.extend({
+            initialize: function () {
+              this.collection.on('add'. this.addOne, this);
+              this.collection.on('reset'. this.addAll, this);
             },
             events: {
               "click #add-app":  "upload",
@@ -154,7 +174,7 @@ __END__
               }
               var friend_model = new IPA({ name: friend_name });
               //Add a new friend model to our friend collection
-              this.ipas.add( friend_model );
+              this.addOne( friend_model );
 
               var oOutput = document.getElementById("output");
               var oData = new FormData(document.forms.namedItem("fileinfo"));
@@ -173,20 +193,24 @@ __END__
               // finally, send our data
               oReq.send(oData);
             },
-            renderUpdate: function(model){
-              $("#" + model.id +  "").removeClass("btn-warning");
-              $("#" + model.id +  "").addClass("btn-success");
-              $("#" + model.id +  "").attr("href", "itms-services://?action=download-manifest&url=" + model.get('plist_file'));
+            render: function(model){
+              this.addAll();
+              return this;
             },
-            addIPALi: function (model) {
+            addAll: function(){
+              this.$el.empty();
+              this.collection.forEach(this.addOne, this);
+            },
+            addOne: function (model) {
               //The parameter passed is a reference to the model that was added
-              // <button class="btn btn-warning" href="#">Warning</button>
-              $("#list").append("<a id=\"" + model.id + "\"class=\"btn btn-warning btn-large\" href=\"#\">" + model.get('name') + "</a><br/>");
-              //Use .get to receive attributes of the model
+              //$("#list").append("<a id=\"" + model.id + "\"class=\"btn btn-warning btn-large\" href=\"#\">" + model.get('name') + "</a><br/>");
+              var view = new IPAView({model: model});
+              this.$el.append(view.render().el);
             }
           });
           
-          var appview = new AppView;
+          var listView = new IPAListView;
+           $("#list").append(listView.el);
         })(jQuery);
       </script>
     </div>
